@@ -8,6 +8,7 @@ logging.basicConfig(format='%(asctime)s - %(message)s',
 
 logging.info('Importing standard python libraries')
 from pathlib import Path
+from os import cpu_count
 
 logging.info('Importing third party python libraries')
 import numpy as np
@@ -47,7 +48,7 @@ logging.info('Setting plots to plot')
 dispersion = False
 streamfunction = False
 sigma_latitude = True
-n_jobs = 8
+n_jobs = max(cpu_count(), 64)
 
 logging.info('Setting flow parameters')
 # General parameters
@@ -244,6 +245,7 @@ def produce_dispersion_dataset(instability):
     psi_arr = psi_arr.squeeze().real  # Get rid of the extra dimension of the eigenfunction array. Get rid of the complex part (should be zero anyway)
 
     viscosity_arr = np.logspace(np.log10(5e-7), -2, num=500)
+    
     # Analysis is made easier by converting the eigenfunctions and eigenvalues into xarray objects.
     if instability == 'inertial':
         ds = xr.Dataset(coords={'lambda': lambda_arr, 'viscosity': viscosity_arr, 'lon': x}, attrs=attrs)
@@ -292,7 +294,7 @@ def produce_sigma_lat_dataset(A_r):
     ds_sigma_lat = xr.Dataset(data_vars={'f': ('latitude', f_arr),
                                          'centrifugal_sigma': ('latitude', centrifugal_sigma),
                                          'inertial_sigma': ('latitucde', inertial_sigma)},
-                              coords={'y': latitude},
+                              coords={'latitude': latitude},
                               attrs=attrs)
     return ds_sigma_lat
 
@@ -304,7 +306,8 @@ if dispersion or streamfunction:
 
     logging.info('Calculating dispersion relation for centrifugal instability')
     ds_disp_centrifugal = produce_dispersion_dataset('centrifugal')
-    ds_disp_centrifugal.to_zarr(processed_path / 'centrifugal_dispersion', mode='w')
+    ds_disp_centrifugal.to_zarr(processed_path / 'centrifugal_dispersion',
+                                mode='w')
 
 if dispersion:
     logging.info('Making dispersion relation plots')
@@ -442,11 +445,19 @@ if sigma_latitude:
     tomega = 2 * np.pi / 24 / 60 / 60
     f_arr = tomega * np.sin(np.radians(latitude))
 
-    ds_sigma_lat_4em4 = produce_sigma_lat_dataset(4e-4)
-    ds_sigma_lat_4em4.to_zarr(processed_path / 'sigma_lat_4em4', mode='w')
+    sigma_lat_4em4_path = processed_path / 'sigma_lat_4em4'
+    if not sigma_lat_4em4_path.exists():
+        ds_sigma_lat_4em4 = produce_sigma_lat_dataset(4e-4)
+        ds_sigma_lat_4em4.to_zarr(sigma_lat_4em4_path, mode='w')
+    else:
+        ds_sigma_lat_4em4 = xr.open_zarr(sigma_lat_4em4_path)
 
-    ds_sigma_lat_1em6 = produce_sigma_lat_dataset(1e-6)
-    ds_sigma_lat_1em6.to_zarr(processed_path / 'sigma_lat_1em6', mode='w')
+    sigma_lat_1em6_path = processed_path / 'sigma_lat_1em6'
+    if not sigma_lat_1em6_path.exists():
+        ds_sigma_lat_1em6 = produce_sigma_lat_dataset(1e-6)
+        ds_sigma_lat_1em6.to_zarr(sigma_lat_1em6_path, mode='w')
+    else:
+        ds_sigma_lat_1em6 = xr.open_zarr(sigma_lat_1em6_path)
 
     logging.info('Doing the sigma_lat plotting')
     fig, axs = plt.subplots(1, 2, sharey=True, figsize=(6, 4))
@@ -454,7 +465,7 @@ if sigma_latitude:
     axs[0].plot(ds_sigma_lat_1em6['inertial_sigma'],
                 ds_sigma_lat_1em6['latitude'],
                 label='Inertial', c='k', ls='-')
-    
+
     axs[0].plot(ds_sigma_lat_1em6['centrifugal_sigma'],
                 ds_sigma_lat_1em6['latitude'],
                 label='Centrifugal', c='k', ls='-.')
@@ -462,10 +473,10 @@ if sigma_latitude:
     axs[0].set_ylim(0, 50)
     axs[0].set_xlim(0, 1.25e-5)
 
-    axs[0].set_xlabel('$\sigma$ (s$^{-1}$)')
-    axs[1].set_xlabel('$\sigma$ (s$^{-1}$)')
+    axs[0].set_xlabel('$\\sigma$ (s$^{-1}$)')
+    axs[1].set_xlabel('$\\sigma$ (s$^{-1}$)')
     axs[0].set_ylabel('Latitude')
-    
+
     formatter0 = EngFormatter(unit='$^\circ$N', sep='', usetex=True)
     axs[0].yaxis.set_major_formatter(formatter0)
 
@@ -473,13 +484,13 @@ if sigma_latitude:
     axs[1].xaxis.major.formatter._useMathText = True
 
     axs[1].plot(ds_sigma_lat_4em4['inertial_sigma'],
-                ds_sigma_lat_4em4['y'],
+                ds_sigma_lat_4em4['latitude'],
                 label='Inertial', c='k', ls='-')
-    
+
     axs[1].plot(ds_sigma_lat_4em4['centrifugal_sigma'],
-                ds_sigma_lat_4em4['y'],
+                ds_sigma_lat_4em4['latitude'],
                 label='Centrifugal', c='k', ls='-.')
-    
+
     axs[1].set_xlim(0, 1.25e-5)
 
     axs[1].legend()

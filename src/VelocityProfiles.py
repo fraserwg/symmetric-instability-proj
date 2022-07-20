@@ -74,7 +74,7 @@ axs[1].set_ylim(-1.1, 0.1)
 axs[0].set_xlim(0, Lx * 1e-3)
 
 axs[0].set_title('Bickley jet')
-axs[0].set_title('(\\,$a$\\,$)', loc='left')
+axs[0].set_title('($\\,$a$\\,$)', loc='left')
 
 axs[1].set_title('Rankine vortex')
 axs[1].set_title('($\\,$b$\\,$)', loc='left')

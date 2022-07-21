@@ -525,6 +525,7 @@ if dwbc:
     xmax = 450
     clim = 1.5
 
+    logging.info('Creating dwbc dispersion dataset')
     ds_disp_dwbc = produce_dispersion_dataset('inertial')
 
     fig = plt.figure(figsize=[6, 4])
@@ -570,16 +571,21 @@ if dwbc:
     formatter0 = EngFormatter(unit='$^\circ$N', sep='', usetex=True)
     ax1.yaxis.set_major_formatter(formatter0)
 
-    # Need to calculate sigma_lat for the plots
-    dwbc_sigma_lat_ds = raw_path / 'dwbc_sigma_lat'
+    dwbc_sigma_lat_ds = processed_path / 'dwbc_sigma_lat'
+    logging.info('Searching for {}'.format(dwbc_sigma_lat_ds))
     if not dwbc_sigma_lat_ds.exists():
+        logging.info('Dataset not found')
 
-        latitude = np.linspace(0.01, 50, 120)
+        latitude = np.linspace(0.01, 5, 120)
         tomega = 2 * np.pi / 24 / 60 / 60
         f_arr = tomega * np.sin(np.radians(latitude))
 
+        logging.info('Creating dwbc_sigma_1em6')
         dwbc_sigma_1em6 = Parallel(n_jobs=n_jobs)(delayed(max_inertial_sigma)(f, viscosity=1e-6) for f in f_arr)
+        logging.info('Creating dwbc_sigma_4em4')
         dwbc_sigma_4em4 = Parallel(n_jobs=n_jobs)(delayed(max_inertial_sigma)(f, viscosity=4e-4) for f in f_arr)
+        
+        logging.info('Converting to dataset')
         dwbc_sigma = np.stack([dwbc_sigma_1em6, dwbc_sigma_4em4], axis=0)
 
         attrs = {'V_0': V_0, 'x_mid': x_mid, 'delta_b': delta_b, 'N2': N2,
@@ -592,12 +598,32 @@ if dwbc:
                                           'A_r': [1e-6, 4e-4]},
                                   attrs=attrs)
 
+        logging.info('Saving dataset to {}'.format(dwbc_sigma_lat_ds))
         ds_sigma_lat.to_zarr(dwbc_sigma_lat_ds)
 
     else:
+        logging.info('Dataset found, opening from disk')
         ds_sigma_lat = xr.open_zarr(dwbc_sigma_lat_ds)
 
     # Now plot sigma_lat
+    ax1.plot(ds_sigma_lat['dwbc_sigma'].sel(A_r=1e-6),
+             ds_sigma_lat['latitude'], label='$1 \\times 10^{-6}$',
+             c='k', ls=':')
+
+    ax1.plot(ds_sigma_lat['dwbc_sigma'].sel(A_r=4e-4),
+             ds_sigma_lat['latitude'], label='$4 \\times 10^{-4}$',
+             c='k', ls='--')
+
+    ax1.legend(title='$A_r$ (m$^2\,$s$^{-1}$)')
+
+    ax1.set_xlim(0, 3.5e-6)
+    ax1.set_ylim(0, 5)
+    ax1.xaxis.major.formatter._useMathText = True
+    
+    fig.suptitle('DWBC')
 
     fig.tight_layout()
-    fig.savefig(figure_path / 'dwbc_lsa.pdf')
+
+    figure_file = figure_path / 'dwbc_lsa.pdf'
+    logging.info('Saving figure to {}'.format(figure_file))
+    fig.savefig(figure_file)

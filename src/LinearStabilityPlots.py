@@ -1,3 +1,4 @@
+from matplotlib import gridspec
 from matplotlib import font_manager as fm
 import logging
 
@@ -47,7 +48,8 @@ dpi = 600
 logging.info('Setting plots to plot')
 dispersion = False
 streamfunction = False
-sigma_latitude = True
+sigma_latitude = False
+dwbc = True
 n_jobs = max(cpu_count(), 64)
 
 logging.info('Setting flow parameters')
@@ -289,7 +291,8 @@ def produce_sigma_lat_dataset(A_r):
     logging.info('Saving sigma_lat dataset')
     attrs = {'V_0': V_0, 'x_mid': x_mid, 'delta_b': delta_b, 'N2': N2,
              'f': f, 'hydrostatic': str(hydrostatic), 'nx': nx, 'dx': dx,
-             'Lx': Lx, 'nr': nr, 'dr': dr, 'R': R, 'A_r': A_r}
+             'Lx': Lx, 'nr': nr, 'dr': dr, 'R': R, 'A_r': A_r, 'V0': V0,
+             'R0': R0}
 
     ds_sigma_lat = xr.Dataset(data_vars={'f': ('latitude', f_arr),
                                          'centrifugal_sigma': ('latitude', centrifugal_sigma),
@@ -470,8 +473,8 @@ if sigma_latitude:
                 ds_sigma_lat_1em6['latitude'],
                 label='Centrifugal', c='k', ls='-.')
 
-    axs[0].set_ylim(0, 50)
-    axs[0].set_xlim(0, 1.25e-5)
+    axs[0].set_ylim(0, 25)
+    axs[0].set_xlim(0, 1.4e-5)
 
     axs[0].set_xlabel('$\\sigma$ (s$^{-1}$)')
     axs[1].set_xlabel('$\\sigma$ (s$^{-1}$)')
@@ -491,7 +494,7 @@ if sigma_latitude:
                 ds_sigma_lat_4em4['latitude'],
                 label='Centrifugal', c='k', ls='-.')
 
-    axs[1].set_xlim(0, 1.25e-5)
+    axs[1].set_xlim(0, 1.4e-5)
 
     axs[1].legend()
 
@@ -502,4 +505,99 @@ if sigma_latitude:
     axs[1].set_title('($\\,$b$\\,$)', loc='left')
 
     fig.tight_layout()
-    fig.savefig('sigma_lat.pdf')
+    fig.savefig(figure_path / 'sigma_lat.pdf')
+
+
+if dwbc:
+    logging.info('Making dwbc plots')
+    Lx = 400e3
+    dx = 2e3
+    nx = int(Lx / dx)
+    x = np.arange(0, Lx, dx)
+
+    V_0 = 0.2
+    x_mid = 60e3
+    delta_b = 30e3
+
+    f = 2.3e-11 * 0.75 * 111e3
+    N2 = 1e-6
+
+    xmax = 450
+    clim = 1.5
+
+    ds_disp_dwbc = produce_dispersion_dataset('inertial')
+
+    fig = plt.figure(figsize=[6, 4])
+
+    gs = gridspec.GridSpec(2, 2,
+                           width_ratios=[1, 1],
+                           height_ratios=[12, 1])
+
+    ax0 = fig.add_subplot(gs[0, 0])
+
+    cax0 = ax0.contourf(ds_disp_dwbc['lambda'], ds_disp_dwbc['viscosity'],
+                        ds_disp_dwbc['sigma_normalised'],
+                        levels=np.linspace(0, clim, 13), cmap=cmo.amp)
+
+    ax0.plot(ds_disp_dwbc['lambda_unstable'],
+             ds_disp_dwbc['viscosity'],
+             '-.k', lw=1, label='$\\lambda^*(A_r)$')
+
+    ax0.set_xscale('log')
+    ax0.set_yscale('log')
+    ax0.set_xlim(1, xmax)
+
+    ax0.set_xlabel('$\\lambda$ (m)')
+    ax0.set_ylabel('$A_r$ (m$^2\\,$s$^{-1}$)')
+    ax0.set_title('($\\,$a$\\,$)', loc='left')
+    ax0.set_title('Dispersion')
+
+    cbax0 = fig.add_subplot(gs[1, 0])
+    cb0 = fig.colorbar(cax0, cax=cbax0, orientation='horizontal')
+    cb0.set_label('$\\sigma / f$', rotation=0, labelpad=15)
+    cb0.set_ticks(np.arange(0, clim + 0.1, 0.25))
+    ax0.legend(loc='upper left')
+
+    ax0.set_ylim(5e-7, 1.5e-2)
+    ax0.set_yticks([1e-6, 1e-5, 1e-4, 1e-3, 1e-2])
+
+    ax1 = fig.add_subplot(gs[:, 1])
+    ax1.set_title('($\\,$b$\\,$)', loc='left')
+    ax1.set_title('Growth rate and latitude')
+
+    ax1.set_xlabel('$\\sigma$ (s$^{-1}$)')
+    ax1.set_ylabel('Latitude')
+    formatter0 = EngFormatter(unit='$^\circ$N', sep='', usetex=True)
+    ax1.yaxis.set_major_formatter(formatter0)
+
+    # Need to calculate sigma_lat for the plots
+    dwbc_sigma_lat_ds = raw_path / 'dwbc_sigma_lat'
+    if not dwbc_sigma_lat_ds.exists():
+
+        latitude = np.linspace(0.01, 50, 120)
+        tomega = 2 * np.pi / 24 / 60 / 60
+        f_arr = tomega * np.sin(np.radians(latitude))
+
+        dwbc_sigma_1em6 = Parallel(n_jobs=n_jobs)(delayed(max_inertial_sigma)(f, viscosity=1e-6) for f in f_arr)
+        dwbc_sigma_4em4 = Parallel(n_jobs=n_jobs)(delayed(max_inertial_sigma)(f, viscosity=4e-4) for f in f_arr)
+        dwbc_sigma = np.stack([dwbc_sigma_1em6, dwbc_sigma_4em4], axis=0)
+
+        attrs = {'V_0': V_0, 'x_mid': x_mid, 'delta_b': delta_b, 'N2': N2,
+                 'hydrostatic': str(hydrostatic), 'nx': nx, 'dx': dx,
+                 'Lx': Lx}
+
+        ds_sigma_lat = xr.Dataset(data_vars={'f': ('latitude', f_arr),
+                                             'dwbc_sigma': (('A_r', 'latitude'), dwbc_sigma)},
+                                  coords={'latitude': latitude,
+                                          'A_r': [1e-6, 4e-4]},
+                                  attrs=attrs)
+
+        ds_sigma_lat.to_zarr(dwbc_sigma_lat_ds)
+
+    else:
+        ds_sigma_lat = xr.open_zarr(dwbc_sigma_lat_ds)
+
+    # Now plot sigma_lat
+
+    fig.tight_layout()
+    fig.savefig(figure_path / 'dwbc_lsa.pdf')

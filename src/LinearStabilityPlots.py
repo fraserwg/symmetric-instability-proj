@@ -32,9 +32,10 @@ processed_path = data_path / 'processed'
 logging.info('Setting plotting defaults')
 # fonts
 fpath = Path('/System/Library/Fonts/Supplemental/PTSans.ttc')
-font_prop = fm.FontProperties(fname=fpath)
-plt.rcParams['font.family'] = font_prop.get_family()
-plt.rcParams['font.sans-serif'] = [font_prop.get_name()]
+if fpath.exists():
+    font_prop = fm.FontProperties(fname=fpath)
+    plt.rcParams['font.family'] = font_prop.get_family()
+    plt.rcParams['font.sans-serif'] = [font_prop.get_name()]
 
 # font size
 plt.rc('xtick', labelsize='10')
@@ -46,9 +47,9 @@ plt.rcParams['axes.titlesize'] = 12
 dpi = 600
 
 logging.info('Setting plots to plot')
-dispersion = False
-streamfunction = False
-sigma_latitude = False
+dispersion = True
+streamfunction = True
+sigma_latitude = True
 dwbc = True
 n_jobs = max(cpu_count(), 64)
 
@@ -131,7 +132,7 @@ dV_phi_dr_arr = np.array([dV_phi_dr(r, R0=R0, V0=V0) for r in r])
 
 
 def calculate_centrifugal_eigenvalue(lambda_val, f, return_eigenvectors=False):
-    """ Calculates the eigenvalue of the LSA equation (i.e. \hat{\omega}^2)
+    """ Calculates the eigenvalue of the LSA equation (i.e. \\hat{\\omega}^2)
 
     Arguments:
     lambda_val (float)--> Value of lambda at which to solve the problem
@@ -180,7 +181,7 @@ def max_centrifugal_sigma(f, lambda_arr=lambda_arr, viscosity=A_r):
 
 
 def calculate_inertial_eigenvalue(lambda_val, f, return_eigenvectors=False):
-    """ Calculates the eigenvalue of the LSA equation (i.e. \hat{\omega}^2)
+    """ Calculates the eigenvalue of the LSA equation (i.e. \\hat{\\omega}^2)
 
     Arguments:
     lambda_val (float)--> Value of lambda at which to solve the problem
@@ -247,7 +248,7 @@ def produce_dispersion_dataset(instability):
     psi_arr = psi_arr.squeeze().real  # Get rid of the extra dimension of the eigenfunction array. Get rid of the complex part (should be zero anyway)
 
     viscosity_arr = np.logspace(np.log10(5e-7), -2, num=500)
-    
+
     # Analysis is made easier by converting the eigenfunctions and eigenvalues into xarray objects.
     if instability == 'inertial':
         ds = xr.Dataset(coords={'lambda': lambda_arr, 'viscosity': viscosity_arr, 'lon': x}, attrs=attrs)
@@ -307,10 +308,31 @@ if dispersion or streamfunction:
     ds_disp_inertial = produce_dispersion_dataset('inertial')
     ds_disp_inertial.to_zarr(processed_path / 'inertial_dispersion', mode='w')
 
+    print('A_r =', A_r)
+    print('Times scale:', ds_disp_inertial['time_scale_days'].sel({'viscosity': A_r}, method='nearest').values, 'days')
+    print('Wavelength:', ds_disp_inertial['lambda_unstable'].sel({'viscosity': A_r}, method='nearest').values, 'metres')
+
+    print('A_r =', 1e-6)
+    print('Times scale:', ds_disp_inertial['time_scale_days'].sel({'viscosity': 1e-6}, method='nearest').values, 'days')
+    print('Wavelength:', ds_disp_inertial['lambda_unstable'].sel({'viscosity': 1e-6}, method='nearest').values, 'metres')
+
     logging.info('Calculating dispersion relation for centrifugal instability')
     ds_disp_centrifugal = produce_dispersion_dataset('centrifugal')
     ds_disp_centrifugal.to_zarr(processed_path / 'centrifugal_dispersion',
                                 mode='w')
+
+    print('A_r =', A_r)
+    print('Times scale:', ds_disp_centrifugal['time_scale_days'].sel(
+        {'viscosity': A_r}, method='nearest').values, 'days')
+    print('Wavelength:', ds_disp_centrifugal['lambda_unstable'].sel(
+        {'viscosity': A_r}, method='nearest').values, 'metres')
+
+    print('A_r =', 1e-6)
+    print('Times scale:', ds_disp_centrifugal['time_scale_days'].sel(
+        {'viscosity': 1e-6}, method='nearest').values, 'days')
+    print('Wavelength:', ds_disp_centrifugal['lambda_unstable'].sel(
+        {'viscosity': 1e-6}, method='nearest').values, 'metres')
+
 
 if dispersion:
     logging.info('Making dispersion relation plots')
@@ -363,6 +385,8 @@ if dispersion:
     ax1.set_xlabel('$\\lambda$ (m)')
     ax1.set_title('($\\,$b$\\,$)', loc='left')
     ax1.set_title('Centrifugal instability')
+
+    fig.suptitle('Dispersion relations')
 
     fig.tight_layout()
     fig.savefig(figure_path / 'vertical_scale_selection.pdf')
@@ -438,6 +462,8 @@ if streamfunction:
     ax0b.set_ylim(-2, 3.75)
     ax0b.set_yticklabels([])
 
+    fig.suptitle('Overturning streamfunctions')
+
     fig.tight_layout()
     fig.savefig(figure_path / 'overturning_structure.pdf')
 
@@ -480,7 +506,7 @@ if sigma_latitude:
     axs[1].set_xlabel('$\\sigma$ (s$^{-1}$)')
     axs[0].set_ylabel('Latitude')
 
-    formatter0 = EngFormatter(unit='$^\circ$N', sep='', usetex=True)
+    formatter0 = EngFormatter(unit='$^\\circ$N', sep='', usetex=True)
     axs[0].yaxis.set_major_formatter(formatter0)
 
     axs[0].xaxis.major.formatter._useMathText = True
@@ -503,6 +529,8 @@ if sigma_latitude:
 
     axs[1].set_title('$A_r = 4 \\times 10^{-4}$ m$^{2}\\,$s$^{-1}$')
     axs[1].set_title('($\\,$b$\\,$)', loc='left')
+
+    fig.suptitle('Latitudinal stability')
 
     fig.tight_layout()
     fig.savefig(figure_path / 'sigma_lat.pdf')
@@ -528,6 +556,18 @@ if dwbc:
     logging.info('Creating dwbc dispersion dataset')
     ds_disp_dwbc = produce_dispersion_dataset('inertial')
 
+    print('A_r =', A_r)
+    print('Times scale:', ds_disp_dwbc['time_scale_days'].sel(
+        {'viscosity': A_r}, method='nearest').values, 'days')
+    print('Wavelength:', ds_disp_dwbc['lambda_unstable'].sel(
+        {'viscosity': A_r}, method='nearest').values, 'metres')
+
+    print('A_r =', 1e-6)
+    print('Times scale:', ds_disp_dwbc['time_scale_days'].sel(
+        {'viscosity': 1e-6}, method='nearest').values, 'days')
+    print('Wavelength:', ds_disp_dwbc['lambda_unstable'].sel(
+        {'viscosity': 1e-6}, method='nearest').values, 'metres')
+
     fig = plt.figure(figsize=[6, 4])
 
     gs = gridspec.GridSpec(2, 2,
@@ -551,7 +591,7 @@ if dwbc:
     ax0.set_xlabel('$\\lambda$ (m)')
     ax0.set_ylabel('$A_r$ (m$^2\\,$s$^{-1}$)')
     ax0.set_title('($\\,$a$\\,$)', loc='left')
-    ax0.set_title('Dispersion')
+    ax0.set_title('Dispersion relation')
 
     cbax0 = fig.add_subplot(gs[1, 0])
     cb0 = fig.colorbar(cax0, cax=cbax0, orientation='horizontal')
@@ -564,11 +604,11 @@ if dwbc:
 
     ax1 = fig.add_subplot(gs[:, 1])
     ax1.set_title('($\\,$b$\\,$)', loc='left')
-    ax1.set_title('Growth rate and latitude')
+    ax1.set_title('Latitudinal stability')
 
     ax1.set_xlabel('$\\sigma$ (s$^{-1}$)')
     ax1.set_ylabel('Latitude')
-    formatter0 = EngFormatter(unit='$^\circ$N', sep='', usetex=True)
+    formatter0 = EngFormatter(unit='$^\\circ$N', sep='', usetex=True)
     ax1.yaxis.set_major_formatter(formatter0)
 
     dwbc_sigma_lat_ds = processed_path / 'dwbc_sigma_lat'
@@ -584,7 +624,7 @@ if dwbc:
         dwbc_sigma_1em6 = Parallel(n_jobs=n_jobs)(delayed(max_inertial_sigma)(f, viscosity=1e-6) for f in f_arr)
         logging.info('Creating dwbc_sigma_4em4')
         dwbc_sigma_4em4 = Parallel(n_jobs=n_jobs)(delayed(max_inertial_sigma)(f, viscosity=4e-4) for f in f_arr)
-        
+
         logging.info('Converting to dataset')
         dwbc_sigma = np.stack([dwbc_sigma_1em6, dwbc_sigma_4em4], axis=0)
 
@@ -614,13 +654,13 @@ if dwbc:
              ds_sigma_lat['latitude'], label='$4 \\times 10^{-4}$',
              c='k', ls='--')
 
-    ax1.legend(title='$A_r$ (m$^2\,$s$^{-1}$)')
+    ax1.legend(title='$A_r$ (m$^2\\,$s$^{-1}$)')
 
-    ax1.set_xlim(0, 3.5e-6)
+    ax1.set_xlim(0, 4e-6)
     ax1.set_ylim(0, 5)
     ax1.xaxis.major.formatter._useMathText = True
-    
-    fig.suptitle('DWBC')
+
+    fig.suptitle('Deep Western Boundary Current')
 
     fig.tight_layout()
 

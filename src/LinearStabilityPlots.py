@@ -15,6 +15,8 @@ logging.info('Importing third party python libraries')
 import numpy as np
 from scipy.sparse.linalg import eigs
 import scipy.sparse as sps
+import matplotlib
+matplotlib.use('pgf')
 import matplotlib.pyplot as plt
 from matplotlib.ticker import EngFormatter
 import xarray as xr
@@ -32,16 +34,17 @@ processed_path = data_path / 'processed'
 logging.info('Setting plotting defaults')
 # fonts
 fpath = Path('/System/Library/Fonts/Supplemental/PTSans.ttc')
-if fpath.exists():
-    font_prop = fm.FontProperties(fname=fpath)
-    plt.rcParams['font.family'] = font_prop.get_family()
-    plt.rcParams['font.sans-serif'] = [font_prop.get_name()]
-
+assert fpath.exists()
+font_prop = fm.FontProperties(fname=fpath)
+plt.rcParams['font.family'] = font_prop.get_family()
+plt.rcParams['font.sans-serif'] = [font_prop.get_name()]
 # font size
-plt.rc('xtick', labelsize='10')
-plt.rc('ytick', labelsize='10')
+plt.rc('xtick', labelsize='8')
+plt.rc('ytick', labelsize='8')
+plt.rcParams['axes.titlesize'] = 10
+plt.rcParams["text.latex.preamble"] = "\\usepackage{euler} \\usepackage{paratype}  \\usepackage{mathfont} \\mathfont[digits]{PT Sans}"
+plt.rcParams["pgf.preamble"] = plt.rcParams["text.latex.preamble"]
 plt.rc('text', usetex=False)
-plt.rcParams['axes.titlesize'] = 12
 
 # output
 dpi = 600
@@ -344,7 +347,8 @@ if dispersion:
                                   gridspec_kw={'height_ratios': [12, 1]})
 
     ax0 = axs['ax0']
-    cax = ax0.contourf(ds_disp_inertial['lambda'], ds_disp_inertial['viscosity'],
+    cax = ax0.contourf(ds_disp_inertial['lambda'],
+                       ds_disp_inertial['viscosity'],
                        ds_disp_inertial['sigma_normalised'],
                        levels=np.linspace(0, clim, 13), cmap=cmo.amp)
 
@@ -355,8 +359,8 @@ if dispersion:
     ax0.set_xscale('log')
     ax0.set_xlim(1, xmax)
 
-    ax0.set_xlabel('$\\lambda$ (m)')
-    ax0.set_ylabel('$A_r$ (m$^2\\,$s$^{-1}$)')
+    ax0.set_xlabel('$\\lambda$ (m)', usetex=True)
+    ax0.set_ylabel('$A_r$ (m$^2\\,$s$^{-1}$)', usetex=True)
     ax0.set_title('($\\,$a$\\,$)', loc='left')
     ax0.set_title('Inertial instability')
 
@@ -367,14 +371,17 @@ if dispersion:
                        levels=np.linspace(0, clim, 13), cmap=cmo.amp)
 
     cb = plt.colorbar(cax, cax=axs['ax2'], orientation='horizontal')
-    cb.set_label('$\\sigma / f$', rotation=0, labelpad=15)
+    cb.set_label('$\\sigma / f$', rotation=0, labelpad=15, usetex=True)
     cb.set_ticks(np.arange(0, clim + 0.1, 0.2))
 
     ax1.plot(ds_disp_centrifugal['lambda_unstable'],
              ds_disp_centrifugal['viscosity'],
              '-.k', lw=1, label='$\\lambda^*(A_r)$')
 
+
+    plt.rc('text', usetex=True)
     ax1.legend(loc='upper left')
+    plt.rc('text', usetex=False)
 
     ax1.set_xscale('log')
     ax1.set_yscale('log')
@@ -386,7 +393,7 @@ if dispersion:
     ax1.set_title('($\\,$b$\\,$)', loc='left')
     ax1.set_title('Centrifugal instability')
 
-    fig.suptitle('Dispersion relations')
+    fig.suptitle('Growth rates')
 
     fig.tight_layout()
     fig.savefig(figure_path / 'vertical_scale_selection.pdf')
@@ -423,11 +430,11 @@ if streamfunction:
     cb = plt.colorbar(cax, cax=axs['ax2'], ticks=np.linspace(-1, 1, 5),
                       orientation='horizontal')
 
-    cb.set_label('$\\psi$', rotation=0)
+    cb.set_label('$\\psi$', rotation=0, usetex=True)
 
     axs['ax1'].invert_yaxis()
-    axs['ax0'].set_xlabel('$x$ (km)')
-    axs['ax1'].set_xlabel('$r$ (km)')
+    axs['ax0'].set_xlabel('$x$ (km)', usetex=True)
+    axs['ax1'].set_xlabel('$r$ (km)', usetex=True)
     axs['ax0'].set_ylabel('Depth (m)')
     axs['ax0'].set_title('($\\,$a$\\,$)', loc='left')
     axs['ax0'].set_title('Inertial instability')
@@ -452,7 +459,7 @@ if streamfunction:
 
     ax1b = axs['ax1'].twinx()
     ax1b.plot(r * 1e-3, rankine_vorticity / f, 'k', lw=1.5)
-    ax1b.set_ylabel('$\\zeta / f$')
+    ax1b.set_ylabel('$\\zeta / f$',  usetex=True)
     ax1b.axhline(0, c='k', ls=':')
     ax1b.set_ylim(-2, 3.75)
 
@@ -502,8 +509,8 @@ if sigma_latitude:
     axs[0].set_ylim(0, 25)
     axs[0].set_xlim(0, 1.4e-5)
 
-    axs[0].set_xlabel('$\\sigma$ (s$^{-1}$)')
-    axs[1].set_xlabel('$\\sigma$ (s$^{-1}$)')
+    axs[0].set_xlabel('$\\sigma$ (s$^{-1}$)',  usetex=True)
+    axs[1].set_xlabel('$\\sigma$ (s$^{-1}$)',  usetex=True)
     axs[0].set_ylabel('Latitude')
 
     formatter0 = EngFormatter(unit='$^\\circ$N', sep='', usetex=True)
@@ -524,10 +531,12 @@ if sigma_latitude:
 
     axs[1].legend()
 
-    axs[0].set_title('$A_r = 1 \\times 10^{-6}$ m$^{2}\\,$s$^{-1}$')
+    axs[0].set_title('$A_r = 1 \\times 10^{-6}$ m$^{2}\\,$s$^{-1}$',
+                     usetex=True)
     axs[0].set_title('($\\,$a$\\,$)', loc='left')
 
-    axs[1].set_title('$A_r = 4 \\times 10^{-4}$ m$^{2}\\,$s$^{-1}$')
+    axs[1].set_title('$A_r = 4 \\times 10^{-4}$ m$^{2}\\,$s$^{-1}$',
+                     usetex=True)
     axs[1].set_title('($\\,$b$\\,$)', loc='left')
 
     fig.suptitle('Latitudinal stability')
@@ -588,16 +597,19 @@ if dwbc:
     ax0.set_yscale('log')
     ax0.set_xlim(1, xmax)
 
-    ax0.set_xlabel('$\\lambda$ (m)')
-    ax0.set_ylabel('$A_r$ (m$^2\\,$s$^{-1}$)')
+    ax0.set_xlabel('$\\lambda$ (m)', usetex=True)
+    ax0.set_ylabel('$A_r$ (m$^2\\,$s$^{-1}$)', usetex=True)
     ax0.set_title('($\\,$a$\\,$)', loc='left')
-    ax0.set_title('Dispersion relation')
+    ax0.set_title('Growth rate')
 
     cbax0 = fig.add_subplot(gs[1, 0])
     cb0 = fig.colorbar(cax0, cax=cbax0, orientation='horizontal')
-    cb0.set_label('$\\sigma / f$', rotation=0, labelpad=15)
+    cb0.set_label('$\\sigma / f$', rotation=0, labelpad=15, usetex=True)
     cb0.set_ticks(np.arange(0, clim + 0.1, 0.25))
+    
+    plt.rc("text", usetex=True)
     ax0.legend(loc='upper left')
+    plt.rc("text", usetex=False)
 
     ax0.set_ylim(5e-7, 1.5e-2)
     ax0.set_yticks([1e-6, 1e-5, 1e-4, 1e-3, 1e-2])
@@ -606,9 +618,9 @@ if dwbc:
     ax1.set_title('($\\,$b$\\,$)', loc='left')
     ax1.set_title('Latitudinal stability')
 
-    ax1.set_xlabel('$\\sigma$ (s$^{-1}$)')
+    ax1.set_xlabel('$\\sigma$ (s$^{-1}$)', usetex=True)
     ax1.set_ylabel('Latitude')
-    formatter0 = EngFormatter(unit='$^\\circ$N', sep='', usetex=True)
+    formatter0 = EngFormatter(unit='$^\\circ$S', sep='', usetex=True)
     ax1.yaxis.set_major_formatter(formatter0)
 
     dwbc_sigma_lat_ds = processed_path / 'dwbc_sigma_lat'
@@ -654,7 +666,10 @@ if dwbc:
              ds_sigma_lat['latitude'], label='$4 \\times 10^{-4}$',
              c='k', ls='--')
 
+    plt.rc("text", usetex=True)
     ax1.legend(title='$A_r$ (m$^2\\,$s$^{-1}$)')
+    plt.rc("text", usetex=False)
+
 
     ax1.set_xlim(0, 4e-6)
     ax1.set_ylim(0, 5)

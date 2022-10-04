@@ -26,10 +26,11 @@ plt.rcParams['font.family'] = font_prop.get_family()
 plt.rcParams['font.sans-serif'] = [font_prop.get_name()]
 
 # font size
-plt.rc('xtick', labelsize='10')
-plt.rc('ytick', labelsize='10')
+plt.rc('xtick', labelsize='8')
+plt.rc('ytick', labelsize='8')
+plt.rcParams['axes.titlesize'] = 10
+plt.rcParams["text.latex.preamble"] = "\\usepackage{euler} \\usepackage{paratype}"
 plt.rc('text', usetex=False)
-plt.rcParams['axes.titlesize'] = 12
 
 logging.info('Defining velocity profile functions')
 
@@ -79,11 +80,11 @@ axs[0].set_title('($\\,$a$\\,$)', loc='left')
 axs[1].set_title('Rankine vortex')
 axs[1].set_title('($\\,$b$\\,$)', loc='left')
 
-axs[0].set_xlabel('$x$ (km)')
-axs[1].set_xlabel('$r$ (km)')
+axs[0].set_xlabel('$x$ (km)', usetex=True)
+axs[1].set_xlabel('$r$ (km)', usetex=True)
 
-axs[0].set_ylabel('$V(x)$ (m$\\,$s$^{-1}$)')
-axs[1].set_ylabel('$V_{\\phi}(r)$ (m$\\,$s$^{-1}$)')
+axs[0].set_ylabel('$V(x)$ (m$\\,$s$^{-1}$)', usetex=True)
+axs[1].set_ylabel('$V_{\\phi}(r)$ (m$\\,$s$^{-1}$)', usetex=True)
 
 fig.tight_layout()
 

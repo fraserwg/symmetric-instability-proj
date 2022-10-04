@@ -10,6 +10,7 @@ from pathlib import Path
 
 logging.info('Importing third party python libraries')
 import numpy as np
+import matplotlib
 import matplotlib.pyplot as plt
 from matplotlib import gridspec
 from matplotlib import font_manager as fm
@@ -37,10 +38,15 @@ plt.rcParams['font.family'] = font_prop.get_family()
 plt.rcParams['font.sans-serif'] = [font_prop.get_name()]
 
 # font size
-plt.rc('xtick', labelsize='10')
-plt.rc('ytick', labelsize='10')
+matplotlib.use('pgf')
+plt.rc('xtick', labelsize='8')
+plt.rc('ytick', labelsize='8')
 plt.rc('text', usetex=False)
-plt.rcParams['axes.titlesize'] = 12
+plt.rcParams['axes.titlesize'] = 10
+plt.rcParams["text.latex.preamble"] = "\\usepackage{euler} \\usepackage{paratype}  \\usepackage{mathfont} \\mathfont[digits]{PT Sans}"
+plt.rcParams["pgf.preamble"] = plt.rcParams["text.latex.preamble"]
+plt.rc('text', usetex=False)
+
 
 # Output
 dpi = 600
@@ -135,9 +141,17 @@ ax2.plot(rho - 1000, z, label='Derived density profile', c='k')
 ax2.invert_yaxis()
 
 
-ax2.set_xlabel('$\\sigma$ (kg$\\,$m$^{-3}$)', loc='center')
+ax2.set_xlabel('$\\gamma^n$ (kg$\\,$m$^{-3}$)', loc='center', usetex=True)
 ax2.set_ylabel('Depth (m)')
 ax2.set_xlim(23, 28)
+ax2.axvline(23.45, c="k", ls="-.", label="$\\gamma^n = 23.45$")
+ax2.axvline(26.5, c="k", ls=":", label="$\\gamma^n = 26.5$")
+
+plt.rc('text', usetex=True)
+ax2.legend(loc="lower left")
+plt.rc('text', usetex=False)
+
+
 ax2.set_xticks(range(23, 29))
 
 ax2.set_ylim(z[-1], 0)

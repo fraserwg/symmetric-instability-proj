@@ -132,3 +132,5 @@ dmypy.json
 .vscode/
 figures/
 data/raw/GEBCO-bathymetry-data
+**.nc
+**.zarr
